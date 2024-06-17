@@ -5,7 +5,7 @@ import logging
 logger = logging.getLogger()
 logger.setLevel(logging.INFO)
 
-client = boto3.client("bedrock-runtime", region_name="us-east-1")
+client = boto3.client("bedrock-runtime", region_name="ca-central-1")
 
 model_id = "anthropic.claude-3-haiku-20240307-v1:0"
 
