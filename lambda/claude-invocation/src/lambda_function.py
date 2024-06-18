@@ -6,6 +6,14 @@ from io import BytesIO
 
 REGION_NAME = "ca-central-1"
 MODEL_ID = "anthropic.claude-3-haiku-20240307-v1:0"
+SYSTEM_INSTRUCTION = ("You are Claude, an AI assistant created by Anthropic, specializing in Information Technology. "
+                      "Your primary role is to assist with software development and IT-related tasks. Focus strictly "
+                      "on the tasks requested, such as providing detailed explanations of code, generating tests, "
+                      "optimizing code, suggesting modifications, and identifying vulnerabilities. Always include "
+                      "code in your responses when requested. While these examples illustrate your capabilities, "
+                      "be prepared to address a broad range of other IT-related inquiries with precision and expert "
+                      "knowledge. Ensure that all interactions are helpful, safe, and accurately tailored to the "
+                      "specific needs of software development. Your responses should be precise and informative.")
 DEFAULT_PROMPT = "No prompt provided"
 DEFAULT_SOURCE_CODE = "No source code provided"
 HTTP_STATUS_OK = 200
@@ -42,6 +50,7 @@ def handle_request_data(event):
         body = json.loads(event['body'])
         source_code = body.get('source_code', DEFAULT_SOURCE_CODE)
         prompt = body.get('prompt', DEFAULT_PROMPT)
+
     return source_code, prompt
 
 
@@ -50,8 +59,22 @@ def invoke_model(source_code, prompt):
         "anthropic_version": "bedrock-2023-05-31",
         "max_tokens": 4096,
         "temperature": 0.5,
-        "system": source_code,
-        "messages": [{"role": "user", "content": [{"type": "text", "text": prompt}]}],
+        "system": SYSTEM_INSTRUCTION,
+        "messages": [
+            {
+                "role": "user",
+                "content": [
+                    {
+                        "type": "text",
+                        "text": source_code
+                    },
+                    {
+                        "type": "text",
+                        "text": prompt
+                    }
+                ]
+            }
+        ],
     }
     model_response = client.invoke_model(modelId=MODEL_ID, body=json.dumps(request_body))
     return json.loads(model_response["body"].read())
