@@ -1,7 +1,7 @@
 import boto3
 import json
 import logging
-from multipart import parse_form_data
+import cgi
 from io import BytesIO
 
 REGION_NAME = "ca-central-1"
@@ -28,25 +28,21 @@ client = boto3.client("bedrock-runtime", region_name=REGION_NAME)
 
 
 def parse_multipart_data(event):
-    body_bytes = BytesIO(bytes(event["body"], "utf-8"))
     headers = {k.lower(): v for k, v in event['headers'].items()}
-    environ = {
-        'CONTENT_LENGTH': len(event['body']),
-        'CONTENT_TYPE': headers.get('content-type'),
-        'REQUEST_METHOD': 'POST',
-        'wsgi.input': body_bytes
-    }
-    return parse_form_data(environ)
+
+    return cgi.FieldStorage(fp=BytesIO(event["body"].encode()), headers=headers,
+                            environ={'REQUEST_METHOD': 'POST', 'CONTENT_TYPE': headers['content-type']})
 
 
 def handle_request_data(event):
     headers = {k.lower(): v for k, v in event['headers'].items()}
     content_type = headers.get('content-type')
     if content_type and CONTENT_TYPE_MULTIPART in content_type:
-        form, files = parse_multipart_data(event)
-        model = form.get('model', DEFAULT_MODEL_ID)
-        source_code = files.get('file', {'value': DEFAULT_SOURCE_CODE}).value
-        prompt = form.get('prompt', DEFAULT_PROMPT)
+        form = parse_multipart_data(event)
+        model = form.getvalue('model', DEFAULT_MODEL_ID)
+        source_code = form.getvalue('file', DEFAULT_SOURCE_CODE)
+        source_code = source_code.decode('utf-8')
+        prompt = form.getvalue('prompt', DEFAULT_PROMPT)
     else:
         body = json.loads(event['body'])
         model = body.get('model', DEFAULT_MODEL_ID)
@@ -83,7 +79,7 @@ def invoke_model(model, source_code, prompt):
 
 
 def lambda_handler(event, context):
-    logger.info("Request: %s", event)
+    # logger.info("Request: %s", event)
     model = DEFAULT_MODEL_ID
     try:
         model, source_code, prompt = handle_request_data(event)
@@ -101,5 +97,5 @@ def lambda_handler(event, context):
             "headers": {"Access-Control-Allow-Origin": "*"},
             "body": json.dumps({"error": str(e)}),
         }
-    logger.info("Response: %s", response)
+    # logger.info("Response: %s", response)
     return response
